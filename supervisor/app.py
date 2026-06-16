@@ -14,8 +14,7 @@ from ag_ui.core import (
 from ag_ui.encoder import EventEncoder
 
 from src.schemas import ChatRequest
-# from src.services import executar_supervisor, executar_supervisor_stream
-from src.agents import executar_supervisor # apagar
+from src.services import executar_supervisor #, executar_supervisor_stream
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

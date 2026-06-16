@@ -1,8 +1,12 @@
-from langchain.agents import create_agent
-from langchain_core.messages import HumanMessage
-from langchain.chat_models import init_chat_model
-from dotenv import load_dotenv
+import logging
 import os
+from typing import List
+from dotenv import load_dotenv
+from pydantic import BaseModel, Field
+from langchain.chat_models import init_chat_model
+from langchain_core.output_parsers import JsonOutputParser
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -12,54 +16,51 @@ _llm = init_chat_model(
     temperature=0.7
 )
 
-agente_cartao_credito = create_agent(
-    _llm,
-    tools=[],
-    system_prompt=(
-        "Você é um especialista em cartão de crédito do banco MDBank. "
-        "Ajude o cliente com dúvidas, solicitação e limites."
+class RouterOutput(BaseModel):
+    agents: List[str] = Field(
+        description="Lista de agentes que devem responder a pergunta"
     )
-)
 
-agente_abertura_conta = create_agent(
-    _llm,
-    tools=[],
-    system_prompt=(
-        "Você é um especialista em abertura de contas do banco MDBank. "
-        "Ajude o cliente a abrir uma conta e explique os tipos disponíveis."
-    ),
-)
 
-def classificar_pergunta(pergunta:str) -> str:
+parser = JsonOutputParser(pydantic_object=RouterOutput)
+
+
+def classifique_intencao_do_usuario(query: str) -> List[dict]:
+    """
+    Classifica a pergunta e retorna quais agentes devem ser chamados.
+    """
+
     prompt = f"""
-Classifique a intenção do usuário.
+    Você é um roteador de agentes de um banco.
 
-Possíveis agentes:
-cartao_credito
-abrir_conta
+    Agentes disponíveis:
 
-Pergunta: {pergunta}
+    cartao_credito
+    abrir_conta
 
-Responda apenas com o nome do agente.
-"""
+    Uma pergunta pode exigir mais de um agente.
+
+    Responda apenas em JSON.
+
+    Pergunta:
+
+    {query}
+
+    {parser.get_format_instructions()}
+    """
 
     resposta = _llm.invoke(prompt)
-    return str(resposta.content).strip()
 
-async def executar_supervisor(texto_usuario: str) -> str:
-    agente = classificar_pergunta(texto_usuario)
+    resultado = parser.parse(str(resposta.content))
 
-    if agente == "cartao_credito":
-        resultado = agente_cartao_credito.invoke(
-            {"messages": [HumanMessage(content=texto_usuario)]}
-        )
-    elif agente == "abrir_conta":
-        resultado = agente_abertura_conta.invoke(
-            {"messages": [HumanMessage(content=texto_usuario)]}
-        )
-    else:
-        resultado = "Não consegui entender sua solicitação"
+    agentes = resultado["agents"]
 
-    mensagem_ia = resultado["messages"][-1]
+    logger.info(f"Agentes selecionados: {agentes}")
 
-    return mensagem_ia.content
+    return [
+        {
+            "query": query,
+            "agent": agente
+        }
+        for agente in agentes
+    ]
