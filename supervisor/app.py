@@ -14,7 +14,8 @@ from ag_ui.core import (
 from ag_ui.encoder import EventEncoder
 
 from src.schemas import ChatRequest
-from src.services import executar_supervisor, executar_supervisor_stream
+# from src.services import executar_supervisor, executar_supervisor_stream
+from src.agents import executar_supervisor # apagar
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -40,7 +41,6 @@ async def chat_endpoint(payload: ChatRequest):
     except Exception as e:
         logger.exception("Erro no /chat")
         return JSONResponse(status_code=500, content={"error": str(e)})
-
 
 @app.post("/")
 async def agent_endpoint(input_data: RunAgentInput, request: Request):

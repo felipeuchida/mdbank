@@ -1,6 +1,6 @@
 fastapi
 uvicorn
-a2a-sdk
+a2a-sdk<1.0
 ag-ui-protocol
 langgraph
 langchain
