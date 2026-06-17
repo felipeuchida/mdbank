@@ -5,4 +5,5 @@ uvicorn
 langchain
 langchain_openai
 langchain-community
+langchain-mcp-adapters
 python-dotenv
