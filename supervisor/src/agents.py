@@ -3,6 +3,7 @@ import os
 from typing import List
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
+
 from langchain.chat_models import init_chat_model
 from langchain_core.output_parsers import JsonOutputParser
 

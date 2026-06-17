@@ -1,14 +1,27 @@
 import logging
-import requests
+import httpx
+import uuid
 
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import Send
 from typing import TypedDict, Annotated
 from operator import add
 
+from a2a.client import A2ACardResolver, ClientFactory, ClientConfig
+from a2a.types import Message, Part, Role, TextPart
+
 from src.agents import classifique_intencao_do_usuario
 
 logger = logging.getLogger(__name__)
+
+HTTPX_CLIENT = httpx.AsyncClient(timeout=30)
+
+AGENTS = {
+    "cartao_credito": "http://cartao_credito_agent:8000",
+    "abrir_conta": "http://abrir_conta_agent:8000"
+}
+
+CLIENT_CACHE = {}
 
 
 class State(TypedDict):
@@ -16,32 +29,55 @@ class State(TypedDict):
     responses: Annotated[list[str], add]
 
 
-def request_agent(message: str, agent: str) -> str:
-    url = f"http://{agent}:8000/send"
-    payload = {"message": message}
+async def request_agent(message: str, agent_url: str) -> str:
+    if agent_url not in CLIENT_CACHE:
 
-    try:
-        logger.info(
-            f"Enviando requisição para {agent} em {url} com payload: {payload}"
+        logger.info(f"Descobrindo AgentCard em {agent_url}")
+
+        resolver = A2ACardResolver(
+            httpx_client=HTTPX_CLIENT,
+            base_url=agent_url,
         )
 
-        response = requests.post(url, json=payload)
-        response.raise_for_status()
+        agent_card = await resolver.get_agent_card()
 
-        data = response.json()
+        logger.info(f"Agent encontrado: {agent_card.name}")
 
-        logger.info(f"Resposta recebida do {agent}: {data}")
+        config = ClientConfig(
+            streaming=False
+        )
 
-        return data.get("resposta", "Resposta não encontrada.")
+        factory = ClientFactory(config)
 
-    except Exception as e:
-        logger.exception(f"Erro ao enviar requisição para {agent}")
-        return f"Erro ao consultar {agent}: {str(e)}"
+        CLIENT_CACHE[agent_url] = factory.create(agent_card)
+
+    client = CLIENT_CACHE[agent_url]
+
+    msg = Message(
+        role=Role.user,
+        message_id=str(uuid.uuid4()),
+        parts=[Part(root=TextPart(text=message))],
+    )
+
+    logger.info(f"Enviando mensagem para agente: {message}")
+
+    async for event in client.send_message(msg):
+
+        if isinstance(event, Message):
+            for part in event.parts:
+                if part.root.kind == "text":
+                    return part.root.text
+
+    return "Sem resposta do agente."
 
 
 def no_de_roteamento(state: State):
+
     query = state.get("query", "")
+
     classifications = classifique_intencao_do_usuario(query)
+
+    logger.info(f"Classificação: {classifications}")
 
     return [
         Send(c["agent"], {"query": c["query"]})
@@ -49,25 +85,29 @@ def no_de_roteamento(state: State):
     ]
 
 
-def cartao_credito_node(state: State):
+async def cartao_credito_node(state: State):
+
     query = state.get("query", "")
+
     logger.info("Executando agente CARTAO_CREDITO")
 
-    resposta = request_agent(
+    resposta = await request_agent(
         query,
-        "cartao_credito_agent"
+        AGENTS["cartao_credito"]
     )
 
     return {"responses": [resposta]}
 
 
-def abrir_conta_node(state: State):
+async def abrir_conta_node(state: State):
+
     query = state.get("query", "")
+
     logger.info("Executando agente ABRIR_CONTA")
 
-    resposta = request_agent(
+    resposta = await request_agent(
         query,
-        "abrir_conta_agent"
+        AGENTS["abrir_conta"]
     )
 
     return {"responses": [resposta]}
@@ -96,6 +136,6 @@ async def executar_supervisor(texto_usuario: str):
         "responses": []
     }
 
-    result = graph.invoke(input_state)
+    result = await graph.ainvoke(input_state)
 
     return "\n\n".join(result["responses"])
