@@ -12,17 +12,18 @@ _llm = init_chat_model(
     temperature=0.7
 )
 
-agente_abertura_conta = create_agent(
+agente_cartao_credito = create_agent(
     _llm,
     tools=[],
     system_prompt=(
-        "Você é um especialista em abertura de contas do banco MDBank. "
-        "Ajude o cliente a abrir uma conta e explique os tipos disponíveis."
-    ),
+        "Você é um especialista em cartão de crédito do banco MDBank. "
+        "Os cartões que existem no MDBank são: [platinum, gold, silver, mdzao] "
+        "Ajude o cliente com dúvidas, solicitação e limites."
+    )
 )
 
 async def run_agent(mensagem: str):
-    resultado = agente_abertura_conta.invoke(
+    resultado = agente_cartao_credito.invoke(
         {"messages": [HumanMessage(content=mensagem)]}
     )
 
