@@ -14,20 +14,12 @@ _llm = init_chat_model(
     temperature=0.3,
 )
 
-SMITHERY_URL = 'https://server.smithery.ai/nickclyde/duckduckgo-mcp-server/mcp'
-SMITHERY_API_KEY = os.getenv("SMITHERY_API_KEY")
-
 client = MultiServerMCPClient(
     {
         "conta": {
             "transport": "http",
             "url": "http://recursos:8000/mcp_gateway",
-        },
-
-        'smithery': {
-            "transport": "http",
-            'url': f"{SMITHERY_URL}?api_key={SMITHERY_API_KEY}",
-        },
+        }
     }
 )
 
@@ -62,7 +54,6 @@ async def build_agent():
             "- Nunca invente dados\n"
             "- Sempre use tools\n"
             "- Use mensagens claras para o cliente\n"
-            "- Para buscas externas use a tool search do smithery, sempre que alguem falar quero buscar\n"
         ),
         checkpointer=memory,
     )
