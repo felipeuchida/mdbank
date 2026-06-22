@@ -14,7 +14,7 @@ from src.agents import classifique_intencao_do_usuario
 
 logger = logging.getLogger(__name__)
 
-HTTPX_CLIENT = httpx.AsyncClient(timeout=30)
+HTTPX_CLIENT = httpx.AsyncClient(timeout=120)
 
 AGENTS = {
     "cartao_credito": "http://cartao_credito_agent:8000",
@@ -44,7 +44,8 @@ async def request_agent(message: str, agent_url: str) -> str:
         logger.info(f"Agent encontrado: {agent_card.name}")
 
         config = ClientConfig(
-            streaming=False
+            streaming=False,
+            httpx_client=HTTPX_CLIENT,
         )
 
         factory = ClientFactory(config)
