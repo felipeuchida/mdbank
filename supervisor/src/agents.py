@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 _llm = init_chat_model(
-    model="gpt-4o",
+    model="gpt-4.1-nano",
     api_key=os.getenv("OPENAI_API_KEY"),
     temperature=0
 )
